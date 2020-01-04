@@ -21,7 +21,7 @@ nan_idx = ~pd.isnull(y).any(axis = 1)
 x = x[nan_idx]
 y = y[nan_idx]
 
-train_x, train_y, test_x, test_y = train_test_split(x, y, 7, 0.125)
+train_x, train_y, test_x, test_y = train_test_split(x, y, 6, 0.125)
 test_name_x = test_x[:, :2]
 train_x = train_x[:, 2:].astype(np.float64)
 train_y = train_y[:, 2:].astype(np.int)

@@ -1,15 +1,14 @@
-import csv
-import argparse
+import sys
 import numpy as np
-import matplotlib.pyplot as plt
+import pandas as pd
 
-from sklearn.cross_decomposition import PLSRegression
+from tqdm import tqdm
+from utils.eval import evaluate
 from lib.preprocessing.preprocess import MSC, SG
-from lib.model.plsr import Plsr
 from lib.model.svm import Svm
-from lib.variableselection.carspls import Carspls
-from lib.variableselection.vip import calculate_vips
-from lib.dataprocess.sampler import train_test_split
+from lib.model.knn import Knn
+from lib.model.mlknn import Mlknn
+from sklearn.model_selection import train_test_split
 
 def transform_to_index(x):
 	y = [eval(i) for i in x]
@@ -109,122 +108,108 @@ def wave_combination(i):
 	else:
 		raise ValueError('GET OUT OFF HERE!!!')
 
-def main(args):
+def main():
+	x = np.load('./outputdata/nir_a1_b1_b33_700_2498.npy', allow_pickle = True)
+	y = np.load('./outputdata/flavor_a1_b1_b33.npy', allow_pickle = True)[:, [0, 1, 2, 8, 11, 12, 13, 14, 15, 16, 17]]
+	
+	#remove nan rows
+	nan_idx = ~pd.isnull(y).any(axis = 1)
+	x = x[nan_idx]
+	y = y[nan_idx]
 
-	x = np.load(args.train_x, allow_pickle = True)
-	y = np.load(args.train_y, allow_pickle = True)
-	train_x, train_y, test_x, test_y = train_test_split(x, y, 6, 0.125)
-	train_info = train_y[:, :2] 
+	train_x, test_x, train_y, test_y = train_test_split(x, y, test_size = 0.2, random_state = int(sys.argv[1])) #random_state = 18
+	train_info = train_y[:, :2]
 	test_info = test_y[:, :2]
 
-	# print(f'train size: {train_info.shape[0]}')
-	# print(f'test size: {test_info.shape[0]}')
+	train_x = train_x[:, 2:].astype(np.float32)
+	train_y = train_y[:, 2:].astype(np.int)
+	test_x = test_x[:, 2:].astype(np.float32)
+	test_y = test_y[:, 2:].astype(np.int)
 
-	# with open('train_name.csv', 'w', newline = '') as f:
-	# 	s = csv.writer(f)
-	# 	for i in range(train_info.shape[0]):
-	# 		s.writerow([train_info[i][0]])
-
-	# with open('test_number.csv', 'w', newline = '') as f:
-	# 	s = csv.writer(f)
-	# 	for i in range(test_info.shape[0]):
-	# 		s.writerow([test_info[i][1]])
-
-	train_x = train_x[:, 2:].astype(np.float64)
-	train_y = train_y[:, 2:].astype(np.float64)
-	test_x = test_x[:, 2:].astype(np.float64)
-	test_y = test_y[:, 2:].astype(np.float64)
-	n_pcts = args.num_pcts
-
-	'''
-	Pure PLSR
-	'''
-
+	header = 'name,number,floral,fruity,S/F,veg.,other,roasted,spices,N/C,sweet'
 	functions = [raw, sg1222_msc, msc, msc_sg1222]
-
-	for fn in functions:
-		for wc in range(1, 19):
-			print(f'Now is {fn.__name__} and wave {wc}')
-			new_train_x, new_test_x = fn(train_x[:, wave_combination(wc)]), fn(test_x[:, wave_combination(wc)])
-			plsr = Plsr(new_train_x, train_y, new_test_x, test_y, n_pcts, fn.__name__, wc)
-			plsr.main()
-
-	'''
-	Pure PLSR
-	'''
-
-	'''
-	CARSPLSR
-	'''
-	# num_sample_runs = 40
-	# MonteCarlo_ratio = 0.8
-	# for fn in functions:
-	# 	new_train_x, new_test_x = fn(train_x[:, wave_combination(8)]), fn(test_x[:, wave_combination(8)])
-		# carspls = Carspls(train_x, train_y, num_sample_runs, MonteCarlo_ratio, n_pcts, 'raw')
-		# carspls.main()
-
-	'''
-	CARSPLSR
-	'''
-
-	'''
-	VIP
-	'''
-	# vip = []
-	# for fn in functions:
-	# 	plsr = PLSRegression(n_pcts)
-	# 	new_train_x = fn(train_x)
-	# 	plsr.fit(new_train_x, train_y)
-	# 	vip.append(calculate_vips(plsr))
-	# raw_wave = [str(k * 2 + 700) for k, v in enumerate(vip[0]) if v > 1.0]
-	# print('Raw', len(raw_wave))
-	# print(raw_wave)
-	# SG_MSC_wave = [str(k * 2 + 700) for k, v in enumerate(vip[1]) if v > 1.0]
-	# print('SG+MSC', len(SG_MSC_wave))
-	# print(SG_MSC_wave)
-	# MSC_wave = [str(k * 2 + 700) for k, v in enumerate(vip[2]) if v > 1.0]
-	# print('MSC', len(MSC_wave))
-	# print(MSC_wave)
-	# MSC_SG_wave = [str(k * 2 + 700) for k, v in enumerate(vip[3]) if v > 1.0]
-	# print('MSC+SG', len(MSC_SG_wave))
-	# print(MSC_SG_wave)
-
-	# wave = np.arange(700, 2500, 2)
-	# plt.plot(wave, vip[0], label = 'RAW')
-	# plt.plot(wave, [1.0]*900)
-	# plt.plot(wave, vip[1], label = 'SG + MSC')
-	# plt.plot(wave, [1.0]*900)
-	# plt.plot(wave, vip[2], label = 'MSC')
-	# plt.plot(wave, [1.0]*900)
-	# plt.plot(wave, vip[3], label = 'MSC + SG')
-	# plt.plot(wave, [1.0]*900)
-	# plt.legend(loc = 'upper right')
-	# plt.show()
-
-	'''
-	VIP
-	'''
-
-	'''
-	SVM
-	'''
-
 	
+	'''
+	Knn
+	'''
+	# print('Now is Knn!!!')
+	# knn = Knn()
+	# results_2 = []
+	# for fn in tqdm(functions):
+	# 	for wc in tqdm(range(1, 19)):
+	# 		for weight in tqdm(['uniform', 'distance']):
+	# 			for n in tqdm(range(1, 306)):
+	# 				results = [weight, n, fn.__name__, wc]
+	# 				new_train_x, new_test_x = fn(train_x[:, wave_combination(wc)]), fn(test_x[:, wave_combination(wc)])
+	# 				knn.train(new_train_x, train_y, weights = weight, n_neighbors = n)
+	# 				pred_y = knn.predict(new_test_x)
+	# 				recall, acc, class_recall, class_acc = evaluate(test_y, pred_y)
+	# 				results.append(recall)
+	# 				results.append(acc)
+	# 				results.extend(class_recall)
+	# 				results.extend(class_acc)
+	# 				pred_y = np.hstack((test_info, pred_y))
+	# 				np.savetxt(f'knn_{weight}_{n}_{fn.__name__}_{wc}.csv', pred_y, delimiter = ',', header = header, fmt = '%s, %s, %i, %i, %i, %i, %i, %i, %i, %i, %i')
+	# 				results_2.append(results)
+	# results_2 = np.asarray(results_2)
+	# np.savetxt('knn.csv', results_2, delimiter = ',', header = 'weight,neighobrs,preprocessing,wave,recall,acc,floral,fruity,S/F,veg.,other,roasted,spices,N/C,sweet,floral,fruity,S/F,veg.,other,roasted,spices,N/C,sweet', fmt = '%s,'* 23 + '%s')
+	# print('Knn is done!!!')
 
+	'''
+	Mlknn
+	'''
+	print('Now is Mlknn!!!')
+	mlknn = Mlknn()
+	results_3 = []
+	for fn in tqdm(functions):
+		for wc in tqdm(range(1, 19)):
+			for s in tqdm(np.arange(0.0, 2.1, 0.1)):
+				for n in tqdm(range(1, 306)):
+					results = [s, n, fn.__name__, wc]
+					new_train_x, new_test_x = fn(train_x[:, wave_combination(wc)]), fn(test_x[:, wave_combination(wc)])
+					mlknn.train(new_train_x, train_y, smooth = s, n_neighbors = n)
+					pred_y = mlknn.predict(new_test_x)
+					recall, acc, class_recall, class_acc = evaluate(test_y, pred_y)
+					results.append(recall)
+					results.append(acc)
+					results.extend(class_recall)
+					results.extend(class_acc)
+					pred_y = np.hstack((test_info, pred_y))
+					np.savetxt(f'mlknn_{s}_{n}_{fn.__name__}_{wc}.csv', pred_y, delimiter = ',', header = header, fmt = '%s, %s, %i, %i, %i, %i, %i, %i, %i, %i, %i')
+					results_3.append(results)
+	results_3 = np.asarray(results_3)
+	np.savetxt('mlknn.csv', results_3, delimiter = ',', header = 'smooth,neighobrs,preprocessing,wave,recall,acc,floral,fruity,S/F,veg.,other,roasted,spices,N/C,sweet,floral,fruity,S/F,veg.,other,roasted,spices,N/C,sweet', fmt = '%s,'* 23 + '%s')
 
+	print('Mlknn is done!!!')
 
 
 	'''
-	SVM
+	Svm
 	'''
+	print('Now is Svm !!!')
+	svm = Svm()
+	results_ = []
+	for fn in tqdm(functions):
+		for wc in tqdm(range(1, 19)):
+			for kernel in tqdm(['rbf', 'poly', 'linear', 'sigmoid']):
+				for c in tqdm([2 ** i for i in list(range(15, 26))]):
+					results = [kernel, c, fn.__name__, wc]
+					new_train_x, new_test_x = fn(train_x[:, wave_combination(wc)]), fn(test_x[:, wave_combination(wc)])
+					svm.train(new_train_x, train_y, kernel = kernel, C = c)
+					pred_y = svm.predict(new_test_x)
+					recall, acc, class_recall, class_acc = evaluate(test_y, pred_y)
+					results.append(recall)
+					results.append(acc)
+					results.extend(class_recall)
+					results.extend(class_acc)
+					pred_y = np.hstack((test_info, pred_y))
+					np.savetxt(f'svm_{kernel}_{c}_{fn.__name__}_{wc}.csv', pred_y, delimiter = ',', header = header, fmt = '%s, %s, %i, %i, %i, %i, %i, %i, %i, %i, %i')
+					results_.append(results)
+	results_ = np.asarray(results_)
+	np.savetxt('svm.csv', results_, delimiter = ',', header = 'kernel,c,preprocessing,wave,recall,acc,floral,fruity,S/F,veg.,other,roasted,spices,N/C,sweet,floral,fruity,S/F,veg.,other,roasted,spices,N/C,sweet', fmt = '%s,'* 23 + '%s')
+	print('Svm is done!!!')
+
+
 
 if __name__ == '__main__':
-	parser = argparse.ArgumentParser()
-	parser.add_argument('--train_x', type = str, help = '[Input] Your X data', default = './outputdata/nir_a0_b0_b42_700_2498.npy')
-	parser.add_argument('--train_y', type = str, help = '[Input] Your Y data', default = './outputdata/agtron_a0_b0_b42.npy')
-	parser.add_argument('-pcts', '--num_pcts', type = int, help = '', default = 10)
-	parser.add_argument('-pre', '--preprecessing', type = str, help = '', default = 'raw')
-
-	args = parser.parse_args()
-
-	main(args)
+	main()

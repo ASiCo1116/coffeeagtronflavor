@@ -1,15 +1,15 @@
 import numpy as np
 
-from sklearn.neighbors import KNeighborsClassifier
+from sklearn.svm import SVC
 
-class Knn(object):
+class Svm(object):
 	def __init__(self):
 		pass
 
-	def train(self, x, y, n_neighbors = 5, weights = 'uniforms'):
+	def train(self, x, y, kernel, C = 1):
 		self.model = []
 		for i in range(y.shape[1]):
-			self.model.append(KNeighborsClassifier(n_neighbors = n_neighbors, weights = weights))
+			self.model.append(SVC(C = float(C), gamma = 'auto', kernel = kernel))
 			self.model[i].fit(x, y[:,i])
 		# print('Training is done!')
 
@@ -19,4 +19,3 @@ class Knn(object):
 			prediction[:, i] = self.model[i].predict(x)
 		# print('Predicting is done!')
 		return prediction
-
