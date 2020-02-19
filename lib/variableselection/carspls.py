@@ -2,9 +2,6 @@ import csv
 import math
 import numpy as np
 
-from tqdm import tqdm
-from sklearn.cross_decomposition import PLSRegression
-
 class Carspls:
 	def __init__(self, x, y, n, monte_carlo_ratio, n_cpts, preprocessing):
 		self.x = x

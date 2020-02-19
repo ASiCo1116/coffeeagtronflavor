@@ -114,8 +114,8 @@ def main(args):
 	x = np.load(args.train_x, allow_pickle = True)
 	y = np.load(args.train_y, allow_pickle = True)
 	train_x, train_y, test_x, test_y = train_test_split(x, y, 6, 0.125)
-	train_info = train_y[:, :2] 
-	test_info = test_y[:, :2]
+	train_info = train_y[200:500, :2] 
+	test_info = test_y[:50, :2]
 
 	# print(f'train size: {train_info.shape[0]}')
 	# print(f'test size: {test_info.shape[0]}')
@@ -130,24 +130,32 @@ def main(args):
 	# 	for i in range(test_info.shape[0]):
 	# 		s.writerow([test_info[i][1]])
 
-	train_x = train_x[:, 2:].astype(np.float64)
-	train_y = train_y[:, 2:].astype(np.float64)
-	test_x = test_x[:, 2:].astype(np.float64)
-	test_y = test_y[:, 2:].astype(np.float64)
+	train_x = train_x[200:500, 2:].astype(np.float64)
+	train_y = train_y[200:500, 2:].astype(np.float64)
+	test_x = test_x[:50, 2:].astype(np.float64)
+	test_y = test_y[:50, 2:].astype(np.float64)
 	n_pcts = args.num_pcts
 
 	'''
 	Pure PLSR
 	'''
-
+	# print(train_info, test_info)
 	functions = [raw, sg1222_msc, msc, msc_sg1222]
 
-	for fn in functions:
-		for wc in range(1, 19):
-			print(f'Now is {fn.__name__} and wave {wc}')
-			new_train_x, new_test_x = fn(train_x[:, wave_combination(wc)]), fn(test_x[:, wave_combination(wc)])
-			plsr = Plsr(new_train_x, train_y, new_test_x, test_y, n_pcts, fn.__name__, wc)
-			plsr.main()
+	# for fn in functions:
+	# 	for wc in range(1, 19):
+	# 		print(f'Now is {fn.__name__} and wave {wc}')
+	# 		new_train_x, new_test_x = fn(train_x[:, wave_combination(wc)]), fn(test_x[:, wave_combination(wc)])
+	# 		plsr = Plsr(new_train_x, train_y, new_test_x, test_y, n_pcts, fn.__name__, wc)
+	# 		plsr.main()
+	wc = 8
+
+	new_train_x, new_test_x = raw(train_x[:, wave_combination(wc)]), raw(test_x[:, wave_combination(wc)])
+	plsr = Plsr(test_info[:, 0], new_train_x, train_y, new_test_x, test_y, n_pcts, raw.__name__, wc)
+	print(plsr.train())
+	print(plsr.predict())
+	plsr.saving_as_csv()
+
 
 	'''
 	Pure PLSR

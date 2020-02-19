@@ -2,7 +2,6 @@ import sys
 import numpy as np
 import pandas as pd
 
-from tqdm import tqdm
 from utils.eval import evaluate
 from lib.preprocessing.preprocess import MSC, SG
 from lib.model.svm import Svm
@@ -127,7 +126,7 @@ def main():
 	test_y = test_y[:, 2:].astype(np.int)
 
 	header = 'name,number,floral,fruity,S/F,veg.,other,roasted,spices,N/C,sweet'
-	functions = [raw, sg1222_msc, msc, msc_sg1222]
+	functions = [sg1222_msc, msc, msc_sg1222]
 	
 	'''
 	Knn
@@ -135,10 +134,10 @@ def main():
 	# print('Now is Knn!!!')
 	# knn = Knn()
 	# results_2 = []
-	# for fn in tqdm(functions):
-	# 	for wc in tqdm(range(1, 19)):
-	# 		for weight in tqdm(['uniform', 'distance']):
-	# 			for n in tqdm(range(1, 306)):
+	# for fn in functions:
+	# 	for wc in range(1, 19):
+	# 		for weight in ['uniform', 'distance']:
+	# 			for n in range(1, 306):
 	# 				results = [weight, n, fn.__name__, wc]
 	# 				new_train_x, new_test_x = fn(train_x[:, wave_combination(wc)]), fn(test_x[:, wave_combination(wc)])
 	# 				knn.train(new_train_x, train_y, weights = weight, n_neighbors = n)
@@ -160,39 +159,36 @@ def main():
 	'''
 	print('Now is Mlknn!!!')
 	mlknn = Mlknn()
-	results_3 = []
-	for fn in tqdm(functions):
-		for wc in tqdm(range(1, 19)):
-			for s in tqdm(np.arange(0.0, 2.1, 0.1)):
-				for n in tqdm(range(1, 306)):
-					results = [s, n, fn.__name__, wc]
-					new_train_x, new_test_x = fn(train_x[:, wave_combination(wc)]), fn(test_x[:, wave_combination(wc)])
-					mlknn.train(new_train_x, train_y, smooth = s, n_neighbors = n)
-					pred_y = mlknn.predict(new_test_x)
-					recall, acc, class_recall, class_acc = evaluate(test_y, pred_y)
-					results.append(recall)
-					results.append(acc)
-					results.extend(class_recall)
-					results.extend(class_acc)
-					pred_y = np.hstack((test_info, pred_y))
-					np.savetxt(f'mlknn_{s}_{n}_{fn.__name__}_{wc}.csv', pred_y, delimiter = ',', header = header, fmt = '%s, %s, %i, %i, %i, %i, %i, %i, %i, %i, %i')
-					results_3.append(results)
-	results_3 = np.asarray(results_3)
-	np.savetxt('mlknn.csv', results_3, delimiter = ',', header = 'smooth,neighobrs,preprocessing,wave,recall,acc,floral,fruity,S/F,veg.,other,roasted,spices,N/C,sweet,floral,fruity,S/F,veg.,other,roasted,spices,N/C,sweet', fmt = '%s,'* 23 + '%s')
-
+	for fn in functions:
+		results_3 = []
+		for wc in range(1, 19):
+			for n in range(1, 306):
+				results = [n, fn.__name__, wc]
+				new_train_x, new_test_x = fn(train_x[:, wave_combination(wc)]), fn(test_x[:, wave_combination(wc)])
+				mlknn.train(new_train_x, train_y, smooth = 1.0, n_neighbors = n)
+				pred_y = mlknn.predict(new_test_x)
+				recall, acc, class_recall, class_acc = evaluate(test_y, pred_y)
+				results.append(recall)
+				results.append(acc)
+				results.extend(class_recall)
+				results.extend(class_acc)
+				pred_y = np.hstack((test_info, pred_y))
+				np.savetxt(f'mlknn_{n}_{fn.__name__}_{wc}.csv', pred_y, delimiter = ',', header = header, fmt = '%s, %s, %i, %i, %i, %i, %i, %i, %i, %i, %i')
+				results_3.append(results)
+		results_3 = np.asarray(results_3)
+		np.savetxt(f'mlknn_{fn.__name__}.csv', results_3, delimiter = ',', header = 'neighobrs,preprocessing,wave,recall,acc,floral,fruity,S/F,veg.,other,roasted,spices,N/C,sweet,floral,fruity,S/F,veg.,other,roasted,spices,N/C,sweet', fmt = '%s,'* 22 + '%s')
 	print('Mlknn is done!!!')
-
 
 	'''
 	Svm
 	'''
 	print('Now is Svm !!!')
 	svm = Svm()
-	results_ = []
-	for fn in tqdm(functions):
-		for wc in tqdm(range(1, 19)):
-			for kernel in tqdm(['rbf', 'poly', 'linear', 'sigmoid']):
-				for c in tqdm([2 ** i for i in list(range(15, 26))]):
+	for fn in functions:
+		results_ = []
+		for wc in range(1, 19):
+			for kernel in ['rbf', 'poly', 'linear', 'sigmoid']:
+				for c in [2 ** i for i in list(range(15, 26))]:
 					results = [kernel, c, fn.__name__, wc]
 					new_train_x, new_test_x = fn(train_x[:, wave_combination(wc)]), fn(test_x[:, wave_combination(wc)])
 					svm.train(new_train_x, train_y, kernel = kernel, C = c)
@@ -205,11 +201,9 @@ def main():
 					pred_y = np.hstack((test_info, pred_y))
 					np.savetxt(f'svm_{kernel}_{c}_{fn.__name__}_{wc}.csv', pred_y, delimiter = ',', header = header, fmt = '%s, %s, %i, %i, %i, %i, %i, %i, %i, %i, %i')
 					results_.append(results)
-	results_ = np.asarray(results_)
-	np.savetxt('svm.csv', results_, delimiter = ',', header = 'kernel,c,preprocessing,wave,recall,acc,floral,fruity,S/F,veg.,other,roasted,spices,N/C,sweet,floral,fruity,S/F,veg.,other,roasted,spices,N/C,sweet', fmt = '%s,'* 23 + '%s')
+		results_ = np.asarray(results_)
+		np.savetxt(f'svm_{fn.__name__}.csv', results_, delimiter = ',', header = 'kernel,c,preprocessing,wave,recall,acc,floral,fruity,S/F,veg.,other,roasted,spices,N/C,sweet,floral,fruity,S/F,veg.,other,roasted,spices,N/C,sweet', fmt = '%s,'* 23 + '%s')
 	print('Svm is done!!!')
-
-
 
 if __name__ == '__main__':
 	main()
