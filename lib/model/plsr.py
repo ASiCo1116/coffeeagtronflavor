@@ -1,3 +1,4 @@
+import os
 import csv
 import numpy as np
 import matplotlib.pyplot as plt
@@ -6,7 +7,6 @@ from sklearn.metrics import r2_score
 from sklearn.cross_decomposition import PLSRegression
 
 class Plsr:
-
 	def __init__(self, name_matrix, train_x, train_y, test_x, test_y, n_pcts, preprocessing, wavelength):
 		self.name = name_matrix
 		self.train_x = train_x
@@ -44,6 +44,7 @@ class Plsr:
 
 	def train(self):
 		
+		# self.coef = np.zeros(shape = (self.n_pcts, self.train_x[1], self.train_x[0]))
 		self.pred_valid_y = np.zeros(shape = (self.train_y.shape[0], self.n_pcts))
 		self.calibration_r2 = np.zeros((self.n_pcts, ))
 		self.rmsecv = np.zeros((self.n_pcts, ))
@@ -77,13 +78,20 @@ class Plsr:
 				coef = np.dot(self.plsr.x_rotations_[:, :pct + 1], \
 						self.plsr.y_loadings_[:, :pct + 1].T) * self.y_std
 
+				#For carspls
+				# self.coef[pct] = coef
+
 				_valid_x -= self.x_mean
 				_valid_x /= self.x_std
 				_valid_y = np.dot(_valid_x, coef) + self.y_mean
 				self.pred_valid_y[i][pct] = _valid_y
 
 				self.rmsecv[pct] += (valid_y - _valid_y) ** 2
-
+		# plt.plot(np.arange(self.train_y.shape[0]), self.train_y[:, 0])
+		# plt.savefig('./test1.png')
+		# plt.clf()
+		# plt.plot(np.arange(self.train_y.shape[0]), self.pred_valid_y[:, 5])
+		# plt.savefig('./test2.png')
 		self.plsr.fit(self.train_x, self.train_y)
 
 		#Some indexes
@@ -136,8 +144,10 @@ class Plsr:
 		return self.prediction_r2, self.rmsep, self.sep, self.prediction_std, self.prediction_rpd
 	
 	def saving_as_csv(self):
-
-		with open(f'/Users/mengchienhsueh/Desktop/plsr_{self.preprocessing}_{self.wavelength}.csv', 'w', newline = '') as f:
+		path = './outputdata/0507agtron/'
+		if not os.path.exists(path):
+			os.makedirs(path)
+		with open(f'{path}/{self.preprocessing}_{self.wavelength}.csv', 'w', newline = '') as f:
 			csvwriter = csv.writer(f)
 
 			title = ['Sample name']
@@ -168,4 +178,5 @@ class Plsr:
 # 	a = ['700','704']
 # 	b = np.random.random((10, 2))
 # 	plsr = Plsr('i', b, b, b, b, 5, 'g', 'h')
-# 	print(plsr._nm_to_index(a))
+# 	plsr.train()
+# 	plsr.predict()

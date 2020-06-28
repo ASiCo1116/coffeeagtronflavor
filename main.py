@@ -1,15 +1,20 @@
 import csv
+import sys
+import ipdb
+import pickle
 import argparse
 import numpy as np
 import matplotlib.pyplot as plt
 
+from IPython import embed
 from sklearn.cross_decomposition import PLSRegression
 from lib.preprocessing.preprocess import MSC, SG
 from lib.model.plsr import Plsr
 from lib.model.svm import Svm
-from lib.variableselection.carspls import Carspls
+# from lib.variableselection.carspls import Carspls
 from lib.variableselection.vip import calculate_vips
 from lib.dataprocess.sampler import train_test_split
+# from lib.variableselection.mwpls import Mwpls
 
 def transform_to_index(x):
 	y = [eval(i) for i in x]
@@ -111,12 +116,30 @@ def wave_combination(i):
 
 def main(args):
 
-	x = np.load(args.train_x, allow_pickle = True)
-	y = np.load(args.train_y, allow_pickle = True)
-	train_x, train_y, test_x, test_y = train_test_split(x, y, 6, 0.125)
-	train_info = train_y[200:500, :2] 
-	test_info = test_y[:50, :2]
+	with open(args.train_x, 'rb') as pickle_file:
+		while True:
+			try:
+				(info, x) = pickle.load(pickle_file)
+			except Exception as e:
+				break
+	with open(args.train_y, 'rb') as pickle_file:
+		while True:
+			try:
+				(info, y) = pickle.load(pickle_file)
+			except Exception as e:
+				break
 
+	#------------------------------------------------------ 取到B50
+	test_split = list(range(6, 1500, 7))
+	# print(test_split)
+	train_split = list(i for i in range(0, 1500) if i not in test_split)
+	# print(train_split)
+	train_x, train_y, train_info, test_x, test_y, test_info = \
+	x[train_split, :], np.expand_dims(y[train_split, 1], axis = 1), np.expand_dims(info[train_split, 2], axis = 1), \
+	x[test_split, :], np.expand_dims(y[test_split, 1], axis = 1), np.expand_dims(info[test_split, 2], axis = 1)
+
+	print(train_x.shape, train_y.shape, test_x.shape, test_y.shape, train_info.shape, \
+			test_info.shape)
 	# print(f'train size: {train_info.shape[0]}')
 	# print(f'test size: {test_info.shape[0]}')
 
@@ -130,33 +153,27 @@ def main(args):
 	# 	for i in range(test_info.shape[0]):
 	# 		s.writerow([test_info[i][1]])
 
-	train_x = train_x[200:500, 2:].astype(np.float64)
-	train_y = train_y[200:500, 2:].astype(np.float64)
-	test_x = test_x[:50, 2:].astype(np.float64)
-	test_y = test_y[:50, 2:].astype(np.float64)
+	train_x = train_x.astype(np.float64)
+	train_y = train_y.astype(np.float64)
+	test_x = test_x.astype(np.float64)
+	test_y = test_y.astype(np.float64)
 	n_pcts = args.num_pcts
 
 	'''
 	Pure PLSR
 	'''
 	# print(train_info, test_info)
-	functions = [raw, sg1222_msc, msc, msc_sg1222]
 
-	# for fn in functions:
-	# 	for wc in range(1, 19):
-	# 		print(f'Now is {fn.__name__} and wave {wc}')
-	# 		new_train_x, new_test_x = fn(train_x[:, wave_combination(wc)]), fn(test_x[:, wave_combination(wc)])
-	# 		plsr = Plsr(new_train_x, train_y, new_test_x, test_y, n_pcts, fn.__name__, wc)
-	# 		plsr.main()
-	wc = 8
+	functions = [raw, msc, msc_sg1222, sg1222_msc]
 
-	new_train_x, new_test_x = raw(train_x[:, wave_combination(wc)]), raw(test_x[:, wave_combination(wc)])
-	plsr = Plsr(test_info[:, 0], new_train_x, train_y, new_test_x, test_y, n_pcts, raw.__name__, wc)
-	print(plsr.train())
-	print(plsr.predict())
-	plsr.saving_as_csv()
-
-
+	for fn in functions:
+		for wc in range(1, 10):
+			print(f'Now is {fn.__name__} and wave {wc}')
+			new_train_x, new_test_x = fn(train_x[:, wave_combination(wc)]), fn(test_x[:, wave_combination(wc)])
+			plsr = Plsr(test_info, new_train_x, train_y, new_test_x, test_y, n_pcts, fn.__name__, wc)
+			print(plsr.train())
+			print(plsr.predict())
+			plsr.saving_as_csv()
 	'''
 	Pure PLSR
 	'''
@@ -228,11 +245,12 @@ def main(args):
 
 if __name__ == '__main__':
 	parser = argparse.ArgumentParser()
-	parser.add_argument('--train_x', type = str, help = '[Input] Your X data', default = './outputdata/nir_a0_b0_b42_700_2498.npy')
-	parser.add_argument('--train_y', type = str, help = '[Input] Your Y data', default = './outputdata/agtron_a0_b0_b42.npy')
+	parser.add_argument('--train_x', type = str, help = '[Input] Your X data', default = './lib/dataset/nir.pkl')
+	parser.add_argument('--train_y', type = str, help = '[Input] Your Y data', default = './lib/dataset/agtron.pkl')
 	parser.add_argument('-pcts', '--num_pcts', type = int, help = '', default = 10)
 	parser.add_argument('-pre', '--preprecessing', type = str, help = '', default = 'raw')
 
 	args = parser.parse_args()
-
+	# with ipdb.launch_ipdb_on_exception():
+	# 	sys.breakpointhook = ipdb.set_trace(context = 5)
 	main(args)
